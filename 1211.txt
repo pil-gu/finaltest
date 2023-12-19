@@ -1,0 +1,479 @@
+08_MyBatis01
+
+pom.xml
+
+<!-- lombok 라이브러리 -->
+	      <dependency>
+	          <groupId>org.projectlombok</groupId>
+	          <artifactId>lombok</artifactId>
+	          <version>1.18.30</version>
+	          <scope>provided</scope>
+	      </dependency>
+      
+	      <!-- spring-jdbc -->
+	      <dependency>
+	          <groupId>org.springframework</groupId>
+	          <artifactId>spring-jdbc</artifactId>
+	          <version>${org.springframework-version}</version>
+	      </dependency>
+	      
+	      <!-- mybatis framework 라이브러리 -->
+	      <dependency>
+		<groupId>org.mybatis</groupId>
+		<artifactId>mybatis</artifactId>
+		<version>3.4.6</version>
+	      </dependency>
+			
+	      <!-- mybatis-spring 라이브러리 -->
+	      <dependency>
+		<groupId>org.mybatis</groupId>
+			    <artifactId>mybatis-spring</artifactId>
+			    <version>1.3.1</version>
+			</dependency>
+
+--------------------------------------
+root-context.xml
+
+<!-- 스프링에서 사용할 자원을 설정하는 공간 => 대부분은 DB 연결 설정 공간 -->
+   
+   <!-- 1. DataSource 정보 설정 -->
+   <bean name="dataSource"
+      class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+      <property name="driverClassName" value="oracle.jdbc.driver.OracleDriver" />
+      <property name="url" value="jdbc:oracle:thin:@localhost:1521:XE" />
+      <property name="username" value="web" />
+      <property name="password" value="1234" />
+   </bean>
+   
+   <!-- 2. SqlSessionFactory 클래스 설정 -->
+   <bean name="sqlSessionFactory" 
+   		class="org.mybatis.spring.SqlSessionFactoryBean">
+   		<property name="dataSource" ref="dataSource" />
+   		<property name="mapperLocations" value="classpath:/mapper/*.xml" />
+   </bean>
+   
+   <!-- 3. SqlSessionTemplate 클래스 설정 -->
+   <bean name="sqlSession"
+   		class="org.mybatis.spring.SqlSessionTemplate">
+   		<constructor-arg ref="sqlSessionFactory" />
+   </bean>
+
+----------------------------------------
+com.member.mybatis01
+MemberController	6번에서 복사
+MemberController 추가
+
+@Controller
+public class MemberController {
+	
+	@Autowired
+	private MemberDAO dao;
+	
+	@RequestMapping("member_list.go")
+	public String list(Model model) {
+		
+		List<Member> list = this.dao.getMemberList();
+		
+		model.addAttribute("memberList", list);
+		
+		return "/member/member_list";
+		
+	}
+	
+	@RequestMapping("member_insert.go")
+	public String insert() {
+		
+		return "/member/member_insert";
+	}
+	
+	@RequestMapping("member_insert_ok.go")
+	public void insertOk(Member dto, HttpServletResponse response) throws IOException {
+		
+		int check = this.dao.insertMember(dto);
+		
+		response.setContentType("text/html; charset=UTF-8");
+		
+		PrintWriter out = response.getWriter();
+		
+		if(check > 0) {
+			out.println("<script>");
+			out.println("alert('회원 등록 성공!!!')");
+			out.println("location.href='member_list.go'");
+			out.println("</script>");
+		}else {
+			out.println("<script>");
+			out.println("alert('회원 등록 실패~~~')");
+			out.println("history.back()");
+			out.println("</script>");
+		}
+		
+	}
+	
+	@RequestMapping("member_content.go")
+	public String content(@RequestParam("num") int no, Model model) {
+		
+		Member dto = this.dao.getMember(no);
+		
+		model.addAttribute("Content", dto);
+		
+		return "/member/member_content";
+		
+	}
+----------------------------------------
+com.member.model 패키지 생성
+Member
+MemberDAO
+6번에서 복사
+
+MemberDAOImpl 생성
+
+@Repository
+public class MemberDAOImpl implements MemberDAO {
+	
+	@Autowired	// 동일한 객체를 연동하는 애노테이션
+	private SqlSessionTemplate sqlSession;
+
+	@Override
+	public List<Member> getMemberList() {
+		
+		return this.sqlSession.selectList("all");
+		
+	}
+
+	@Override
+	public int insertMember(Member dto) {
+		
+		return this.sqlSession.insert("add", dto);
+		
+	}
+
+	@Override
+	public Member getMember(int num) {
+		
+		return this.sqlSession.selectOne("cont", num);
+		
+	}
+
+-------------------------
+views폴더 home.jsp ==> main.jsp
+
+<div align="center">
+		<hr width="50%" color="blue">
+			<h3>MEMBER10 테이블 메인 페이지</h3>
+		<hr width="50%" color="blue">
+		<br> <br>
+		
+		<a href="<%=request.getContextPath() %>/member_list.go">[회원 전체 목록]</a>
+		
+	</div>
+
+-------------------------------------
+HomeController
+
+@Controller
+public class HomeController {
+	
+	private static final Logger logger = LoggerFactory.getLogger(HomeController.class);
+	
+	/**
+	 * Simply selects the home view to render by returning its name.
+	 */
+	@RequestMapping(value = "/", method = RequestMethod.GET)
+	public String home(Locale locale, Model model) {
+		
+		// 안에 내용 다지우고
+		
+		return "main";
+	}
+
+----------------------------------
+MemberDAOImpl
+
+@Repository
+public class MemberDAOImpl implements MemberDAO {
+	
+	@Autowired	// 동일한 객체를 연동하는 애노테이션
+	private SqlSessionTemplate sqlSession;
+
+	@Override
+	public List<Member> getMemberList() {
+		
+		return this.sqlSession.selectList("all");
+		
+	}
+----------------------------------
+MemberController
+
+@Controller
+public class MemberController {
+	
+	@Autowired	// 동일한 객체를 연동하는 애노테이션
+	private MemberDAO dao;
+	
+	@RequestMapping("member_list.go")
+	public String list(Model model) {
+		
+		List<Member> list = this.dao.getMemberList();
+		
+		model.addAttribute("memberList", list);
+		
+		return "/member/member_list";
+		
+	}
+
+}
+-----------------------------------
+
+src/main/resources
+member.xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+	DTD(Document Type Definition)
+	- 작성한 문서가 어떤 문서인지에 대해서 정의해 놓은 것
+	- 하나의 시스템 내에서 사용할 XML 데이터의 구조를 정의하여
+	  유효성을 점검 시 사용하는 태그
+ -->
+ 
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+ <!-- 
+ 	- namespace 명은 패키지명을 포함해서 DAO 인터페이스 이름으로
+ 	  작성하는 것이 관례임
+ 	- namespace 명은 mapper들을 구분하는데 식별자로 사용이 됨
+  -->
+  
+<mapper namespace="com.member.model.MemberDAO">
+
+	<select id="all" resultType="com.member.model.Member">
+		select * from member10 order by num desc
+	</select>
+	
+	<insert id="add" parameterType="com.member.model.Member">
+		insert into member10 values(
+			(select max(num) from member10) + 1,
+			#{memid}, #{memname}, #{pwd}, #{age}, #{mileage},
+			#{job}, #{addr}, sysdate)
+	</insert>
+	
+	<select id="cont" parameterType="int"
+			resultType="com.member.model.Member">
+			select * from member10 where num = #{num}
+	</select>
+
+</mapper>
+-----------------------------------
+member/member_list.jsp
+
+<div align="center">
+			<hr width="50%" color="red">
+				<h3>MEMBER10 테이블 회원 전체 리스트 페이지</h3>
+			<hr width="50%" color="red">
+			<br> <br>
+			
+			<table border="1" width="450">
+				<tr>
+					<th>회원 No.</th> <th>회원 이름</th>
+					<th>회원 직업</th> <th>회원 가입일</th>
+				</tr>
+				
+				<c:set var="list" value="${memberList }" />
+				<c:if test="${!empty list }">
+					<c:forEach items="${list }" var="dto">
+						<tr>
+							<td> ${dto.getNum() } </td>
+							<td> 
+								<a href="<%=request.getContextPath() %>/member_content.go?num=${dto.getNum() }">
+							${dto.getMemname() } </a>
+							</td>
+							<td> ${dto.getJob() } </td>
+							<td> ${dto.getRegdate().substring(0, 10) } </td>
+						</tr>
+					</c:forEach>
+				</c:if>
+				
+				<c:if test="${empty list }">
+					<tr>
+						<td colspan="4" align="center">
+						<h3>전체 회원 리스트가 없습니다..</h3>
+						</td>
+					</tr>
+				</c:if>
+				
+			</table>
+			<br> <br>
+			
+			<input type="button" value="회원등록"
+					onclick="location.href='member_insert.go'">
+			
+		</div>
+
+-----------------------------------
+MemberDAOImpl
+
+@Override
+	public int insertMember(Member dto) {
+		
+		return this.sqlSession.insert("add", dto);
+		
+	}
+----------------------------------
+MemberController
+
+@RequestMapping("member_insert.go")
+	public String insert() {
+		
+		return "/member/member_insert";
+	}
+	
+----------------------------------
+MemberController
+
+	@RequestMapping("member_insert_ok.go")
+	public void insertOk(Member dto, HttpServletResponse response) throws IOException {
+		
+		int check = this.dao.insertMember(dto);
+		
+		response.setContentType("text/html; charset=UTF-8");
+		
+		PrintWriter out = response.getWriter();
+		
+		if(check > 0) {
+			out.println("<script>");
+			out.println("alert('회원 등록 성공!!!')");
+			out.println("location.href='member_list.go'");
+			out.println("</script>");
+		}else {
+			out.println("<script>");
+			out.println("alert('회원 등록 실패~~~')");
+			out.println("history.back()");
+			out.println("</script>");
+		}
+		
+	}
+
+----------------------------------
+member_list.jsp
+
+<a href="<%=request.getContextPath() %>/member_content.go?num=${dto.getNum() }">
+
+----------------------------------
+MemberDAOImpl
+
+@Override
+	public Member getMember(int num) {
+		
+		return this.sqlSession.selectOne("cont", num);
+		
+	}
+
+---------------------------------
+
+MemberController
+
+@RequestMapping("member_content.go")
+	public String content(@RequestParam("num") int no, Model model) {
+		
+		Member dto = this.dao.getMember(no);
+		
+		model.addAttribute("Content", dto);
+		
+		return "/member/member_content";
+		
+	}
+
+-------------------------------
+member_content.jsp
+
+<div align="center">
+			<c:set var="dto" value="${Content }" />
+			<hr width="50%" color="red">
+				<h3> ${dto.getMemname() } 회원 정보 상세 페이지</h3>
+			<hr width="50%" color="red">
+			<br> <br>
+			
+			<table border="1" width="450">
+				<tr>
+					<th>회원 No.</th>
+					<td> ${dto.getNum() } </td>
+				</tr>
+				
+				<tr>
+					<th>회원 아이디</th>
+					<td> ${dto.getMemid() } </td>
+				</tr>
+				
+				<tr>
+					<th>회원 이름</th>
+					<td> ${dto.getMemname() } </td>
+				</tr>
+				
+				<tr>
+					<th>회원 비밀번호</th>
+					<td>
+						<c:if test="${dto.getPwd().length() != 0 }">
+							<c:forEach begin="1" end="${dto.getPwd().length() }">
+									*
+							</c:forEach>
+						</c:if>
+					</td>
+				</tr>
+				
+				<tr>
+					<th>회원 나이</th>
+					<td> ${dto.getAge() } </td>
+				</tr>
+				
+				<tr>
+					<th>회원 마일리지</th>
+					<td>
+						<fmt:formatNumber value="${dto.getMileage() }" />
+					</td>
+				</tr>
+				
+				<tr>
+					<th>회원 직업</th>
+					<td> ${dto.getJob() } </td>
+				</tr>
+				
+				<tr>
+					<th>회원 주소</th>
+					<td> ${dto.getAddr() } </td>
+				</tr>
+				
+				<tr>
+					<th>회원 가입일</th>
+					<td> ${dto.getRegdate() } </td>
+				</tr>
+				
+				<c:if test="${empty dto }">
+					<tr>
+						<td colspan="2" align="center">
+							<h3>회원에 대한 정보가 없습니다...</h3>
+						</td>
+					</tr>
+				</c:if>
+			</table>
+			<br> <br>
+			
+			<input type="button" value="회원수정"
+					onclick="location.href='member_modify.go?num=${dto.getNum() }'">
+					&nbsp;&nbsp;
+			<input type="button" value="회원삭제"
+					onclick="if(confirm('정말로 회원을 삭제하시겠습니까?')) {
+								location.href='member_delete.go?num=${dto.getNum() }'
+								}else {return; }">
+					&nbsp;&nbsp;
+			<input type="button" value="전체회원"
+					onclick="location.href='member_list.go'">	
+			
+		</div>
+
+-------------------------------------
+
+
+
+
